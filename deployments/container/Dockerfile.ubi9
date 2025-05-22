@@ -43,11 +43,20 @@ ARG VERSION="N/A"
 ARG GIT_COMMIT="unknown"
 RUN make PREFIX=/artifacts cmds
 
-FROM nvcr.io/nvidia/cuda:12.8.0-base-ubi9
+# Download must-gather dependency: `kubectl`
+ARG TARGETARCH
+RUN OS_ARCH=${TARGETARCH/x86_64/amd64} && OS_ARCH=${OS_ARCH/aarch64/arm64} && \
+    curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/${OS_ARCH}/kubectl && \
+    chmod +x ./kubectl
+
+FROM nvcr.io/nvidia/distroless/go:v3.1.7-dev
+
+USER 65532:65532
 
 COPY --from=build /artifacts/k8s-kata-manager /usr/bin/k8s-kata-manager
+COPY --from=build /build/kubectl /usr/bin/
 
-RUN dnf install -y kmod
+# RUN dnf install -y kmod
 
 LABEL version="${VERSION}"
 LABEL release="N/A"
